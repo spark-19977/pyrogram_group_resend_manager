@@ -67,15 +67,18 @@ class Application:
                     pass
                 await redis.delete(RedisKeys.send_key)
             elif code := (await redis.get(RedisKeys.sended_code)):
-                logging.info('receive sign in signal')
-                code = code.decode()
-                code_hash = await redis.get(RedisKeys.code_hash)
-                code_hash = code_hash.decode()
-                await self.client.sign_in(settings.phone, code_hash, code)
+                try:
+                    logging.info('receive sign in signal')
+                    code = code.decode()
+                    code_hash = await redis.get(RedisKeys.code_hash)
+                    code_hash = code_hash.decode()
+                    phone = await redis.get(RedisKeys.phone)
+                    await self.client.sign_in(phone.decode(), code_hash, code)
 
-                await self.on_message_handler()
-                await redis.delete(RedisKeys.sended_code)
-                await self.initialize_pyrogram()
+                    await self.on_message_handler()
+                    await self.initialize_pyrogram()
+                finally:
+                    await redis.delete(RedisKeys.sended_code)
             elif await redis.get(RedisKeys.logout):
                 logging.info('receive logout signal')
                 try:

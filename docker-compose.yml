@@ -4,11 +4,12 @@ services:
   web:
     build:
       context: ./web
-    command: gunicorn main:app --workers 1 --worker-class uvicorn.workers.UvicornWorker --bind ${HOST}:${PORT} --log-config /app/log.ini
+
+    command: gunicorn main:app --workers 2 --worker-class uvicorn.workers.UvicornWorker --bind ${HOST}:${PORT} --access-logfile -
     volumes:
       - ./web:/app
     ports:
-      - '8000:8000'
+      - 8000:${PORT}
     restart: 'always'
     env_file:
       - ./.env
