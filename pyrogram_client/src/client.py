@@ -4,7 +4,7 @@ import os
 import re
 from datetime import datetime, timedelta
 
-from pyrogram import Client, raw
+from pyrogram import Client, raw, filters
 from apscheduler.schedulers.asyncio import AsyncIOScheduler as Scheduler
 from pyrogram.errors import PhoneNumberInvalid
 from sqlalchemy import select, update
@@ -35,13 +35,35 @@ class Application:
         await redis.set(RedisKeys.authed, 1)
 
     async def on_message_handler(self):
-        @self.client.on_message(chats_filter)
+        @self.client.on_message(chats_filter & filters.incoming)
         async def read_message(client, message):
             logging.info('callback receive')
             async with Base.session() as session:
                 keywords = await session.scalars(select(Keyword).filter_by(chat_id=message.chat.id))
             for keyword in keywords:
-                if re.search(fr'\b{keyword.keyword}\b', message.text.lower()):
+                text = message.text
+                _keyword = keyword.keyword
+                try:
+                    text = message.text.lower()
+                except Exception:
+                    pass
+
+                if '+' in _keyword and _keyword in text:
+                    self.scheduler.add_job(answer_in, trigger='date',
+                                           run_date=datetime.now() + timedelta(seconds=keyword.answer_in_seconds),
+                                           kwargs=dict(client=self.client, answer=keyword.answer,
+                                                       chat_id=message.chat.id, mess_id=message.id))
+                    if keyword.chat.one_time_answer:
+                        async with Base.session() as session:
+                            await session.execute(update(Chat).filter_by(id=message.chat.id).values(is_active=False))
+                            await session.commit()
+                    break
+
+                try:
+                    _keyword = _keyword.replace('+', '\\+')
+                except Exception:
+                    pass
+                if re.search(fr'\b{_keyword}\b', text):
                     self.scheduler.add_job(answer_in, trigger='date',
                                            run_date=datetime.now() + timedelta(seconds=keyword.answer_in_seconds),
                                            kwargs=dict(client=self.client, answer=keyword.answer,
