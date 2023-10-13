@@ -28,7 +28,7 @@ class Chat(Base):
 
 
 class Keyword(Base):
-    chat_id = sqlalchemy.Column(sqlalchemy.ForeignKey('chat.id', ondelete='cascade'), nullable=False)
+    chat_id = sqlalchemy.Column(sqlalchemy.ForeignKey('chat.id', ondelete='cascade'), nullable=True)
     keyword = sqlalchemy.Column(sqlalchemy.String(256), nullable=False)
     answer = sqlalchemy.Column(sqlalchemy.String(4000), nullable=False)
     answer_in_seconds = sqlalchemy.Column(sqlalchemy.Integer(), nullable=False)
