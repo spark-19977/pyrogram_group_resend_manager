@@ -35,11 +35,11 @@ class Keyword(Base):
 
     chat = relationship('Chat', backref='keywords', lazy='joined')
 
-    @validates('answer_in_seconds')
-    def validate_answer_time(self, key, value):
-        if value < 1:
-            raise AssertionError('answer_in_seconds must be positive')
-        return value
+    # @validates('answer_in_seconds')
+    # def validate_answer_time(self, key, value):
+    #     if value < 1:
+    #         raise AssertionError('answer_in_seconds must be positive')
+    #     return value
 
     def __str__(self):
         return f'{self.keyword}'
