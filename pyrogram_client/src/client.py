@@ -51,58 +51,38 @@ class Application:
                         pass
                     new_keywords = keyword.keyword.split(',')
                     for _keyword in new_keywords:
-                        if '+' in _keyword and _keyword in text:
-                            if keyword.answer_in_seconds < 1:
-                                await client.send_message(chat_id=message.chat.id, text=keyword.answer, )
-                            else:
-                                self.scheduler.add_job(answer_in, trigger='date',
-                                                       run_date=datetime.now() + timedelta(seconds=keyword.answer_in_seconds),
-                                                       kwargs=dict(client=self.client, answer=keyword.answer,
-                                                                   chat_id=message.chat.id, mess_id=message.id))
-                            if keyword.chat.one_time_answer:
-                                async with Base.session() as session:
-                                    await session.execute(update(Chat).filter_by(id=message.chat.id).values(is_active=False))
+                        trans_table = {'.': '\\.', '^': '\\^', '$': '\\$', '*': '\\*', '+': '\\+', '?': '\\?',
+                                       '{': '\\{', '}': '\\}', '[': '\\[',
+                                       ']': '\\]', '\\': '\\\\', '|': '\\|', '(': '\\(', ')': '\\)'}
+                        _keyword = _keyword.translate(_keyword.maketrans(trans_table))
+                        if _keyword:
+                            if _keyword[0].isalnum():
+                                _keyword = r'\b' + _keyword
+                            if _keyword[-1].isalnum():
+                                _keyword += r'\b'
+
+                        if re.search(_keyword, text):
+                            '''delete in future'''
+                            async with Base.session() as session:
+                                is_active = await session.scalar(select(Chat.is_active).filter_by(id=keyword.chat.id))
+                                if keyword.chat.one_time_answer:
+                                    await session.execute(
+                                        update(Chat).filter_by(id=message.chat.id).values(is_active=False))
                                     await session.commit()
-                            raise StopError
-
-
-                        try:
-                            _keyword = _keyword.replace('+', '\\+')
-                        except Exception:
-                            pass
-
-                        if _keyword and not _keyword[0].isalpha() and not _keyword[-1].isalpha():
-                            if re.search(fr'{_keyword}', text):
+                            if is_active:
 
                                 if keyword.answer_in_seconds < 1:
                                     await client.send_message(chat_id=message.chat.id, text=keyword.answer, )
                                 else:
                                     self.scheduler.add_job(answer_in, trigger='date',
-                                                           run_date=datetime.now() + timedelta(
-                                                               seconds=keyword.answer_in_seconds),
+                                                           run_date=datetime.now() + timedelta(seconds=keyword.answer_in_seconds),
                                                            kwargs=dict(client=self.client, answer=keyword.answer,
                                                                        chat_id=message.chat.id, mess_id=message.id))
-                                if keyword.chat.one_time_answer:
-                                    async with Base.session() as session:
-                                        await session.execute(
-                                            update(Chat).filter_by(id=message.chat.id).values(is_active=False))
-                                        await session.commit()
+                                # if keyword.chat.one_time_answer:
+                                #     async with Base.session() as session:
+                                #         await session.execute(update(Chat).filter_by(id=message.chat.id).values(is_active=False))
+                                #         await session.commit()
                                 raise StopError
-
-                        if re.search(fr'\b{_keyword}\b', text):
-
-                            if keyword.answer_in_seconds < 1:
-                                await client.send_message(chat_id=message.chat.id, text=keyword.answer, )
-                            else:
-                                self.scheduler.add_job(answer_in, trigger='date',
-                                                       run_date=datetime.now() + timedelta(seconds=keyword.answer_in_seconds),
-                                                       kwargs=dict(client=self.client, answer=keyword.answer,
-                                                                   chat_id=message.chat.id, mess_id=message.id))
-                            if keyword.chat.one_time_answer:
-                                async with Base.session() as session:
-                                    await session.execute(update(Chat).filter_by(id=message.chat.id).values(is_active=False))
-                                    await session.commit()
-                            raise StopError
                 except StopError:
                     break
                 except Exception:
