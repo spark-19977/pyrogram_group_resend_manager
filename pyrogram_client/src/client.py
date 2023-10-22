@@ -7,15 +7,38 @@ from datetime import datetime, timedelta
 from pyrogram import Client, raw, filters
 from apscheduler.schedulers.asyncio import AsyncIOScheduler as Scheduler
 from pyrogram.errors import PhoneNumberInvalid
+from pyrogram.types import Message
 from sqlalchemy import select, update
 
 from settings import settings
 from src.redis import redis, RedisKeys
-from .db.models import Base, Keyword, Chat
-from .filters import chats_filter
-from .scheduler_task import answer_in
+
+from src.db.models import MinusKeyword, Manager
+from .db.models import Base, Keyword
+
 
 class StopError(Exception): pass
+
+
+def parse_keywords(keyword: str):
+    trans_table = {'.': '\\.', '^': '\\^', '$': '\\$', '*': '\\*', '+': '\\+', '?': '\\?',
+                   '{': '\\{', '}': '\\}', '[': '\\[',
+                   ']': '\\]', '\\': '\\\\', '|': '\\|', '(': '\\(', ')': '\\)'}
+    keyword = keyword.translate(keyword.maketrans(trans_table))
+    try:
+        keyword = keyword.lower()
+    except Exception as err:
+        logging.exception(err)
+        pass
+    keywords = keyword.split(',')
+    for keyword in keywords:
+        if keyword:
+            if keyword[0].isalnum():
+                keyword = r'\b' + keyword
+            if keyword[-1].isalnum():
+                keyword += r'\b'
+        yield keyword
+
 
 class Application:
     def __init__(self):
@@ -36,57 +59,45 @@ class Application:
         await redis.set(RedisKeys.authed, 1)
 
     async def on_message_handler(self):
-        @self.client.on_message(chats_filter & filters.incoming)
-        async def read_message(client, message):
+        @self.client.on_message(filters.incoming)
+        async def read_message(client: Client, message: Message):
             logging.info('callback receive')
             async with Base.session() as session:
-                keywords = await session.scalars(select(Keyword).filter_by(chat_id=message.chat.id))
+                keywords = await session.scalars(select(Keyword))
 
+            text = message.text.lower()
             for keyword in keywords:
                 try:
-                    text = message.text
-                    try:
-                        text = message.text.lower()
-                    except Exception:
-                        pass
-                    new_keywords = keyword.keyword.split(',')
-                    for _keyword in new_keywords:
-                        trans_table = {'.': '\\.', '^': '\\^', '$': '\\$', '*': '\\*', '+': '\\+', '?': '\\?',
-                                       '{': '\\{', '}': '\\}', '[': '\\[',
-                                       ']': '\\]', '\\': '\\\\', '|': '\\|', '(': '\\(', ')': '\\)'}
-                        _keyword = _keyword.translate(_keyword.maketrans(trans_table))
-                        if _keyword:
-                            if _keyword[0].isalnum():
-                                _keyword = r'\b' + _keyword
-                            if _keyword[-1].isalnum():
-                                _keyword += r'\b'
-
+                    for _keyword in parse_keywords(keyword.keyword):
                         if re.search(_keyword, text):
-                            '''delete in future'''
+                            logging.info('asdaweasd')
                             async with Base.session() as session:
-                                is_active = await session.scalar(select(Chat.is_active).filter_by(id=keyword.chat.id))
-                                if keyword.chat.one_time_answer:
-                                    await session.execute(
-                                        update(Chat).filter_by(id=message.chat.id).values(is_active=False))
-                                    await session.commit()
-                            if is_active:
+                                minus_keywords = await session.scalars(
+                                    select(MinusKeyword))
+                            for minus_keyword in minus_keywords:
+                                for _minus_keyword in parse_keywords(minus_keyword.minus_keyword):
+                                    if re.search(_minus_keyword, text):
+                                        raise StopError
+                            async with Base.session() as session:
+                                managers = await session.scalars(select(Manager))
+                            for manager in managers:
+                                logging.info(manager.id)
+                                try:
+                                    await message.forward(manager.id)
+                                    await asyncio.sleep(1)
+                                    # await client.send_message(manager.id, text='found message', reply_to_message_id=message.id)
+                                except Exception as err:
+                                    logging.exception(err)
 
-                                if keyword.answer_in_seconds < 1:
-                                    await client.send_message(chat_id=message.chat.id, text=keyword.answer, )
-                                else:
-                                    self.scheduler.add_job(answer_in, trigger='date',
-                                                           run_date=datetime.now() + timedelta(seconds=keyword.answer_in_seconds),
-                                                           kwargs=dict(client=self.client, answer=keyword.answer,
-                                                                       chat_id=message.chat.id, mess_id=message.id))
-                                # if keyword.chat.one_time_answer:
-                                #     async with Base.session() as session:
-                                #         await session.execute(update(Chat).filter_by(id=message.chat.id).values(is_active=False))
-                                #         await session.commit()
-                                raise StopError
+                            raise StopError
                 except StopError:
+                    logging.info('callback stoped')
                     break
-                except Exception:
+
+                except Exception as err:
+                    logging.exception(err)
                     pass
+
             logging.info('callback processed')
 
     async def start_loop(self):

@@ -9,7 +9,7 @@ async def _chats_filter(_, __, m):
         chats = await session.scalars(select(Chat))
         chats = chats.all()
         for chat in chats:
-            if m.chat.id == chat.id and chat.is_active:
+            if m.chat.id == chat.id:
                 return True
         return False
 

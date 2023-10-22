@@ -18,28 +18,29 @@ class Base(DeclarativeBase):
 
 
 
-class Chat(Base):
-    is_active = sqlalchemy.Column(sqlalchemy.Boolean(), default=True, nullable=False)
-    one_time_answer = sqlalchemy.Column(sqlalchemy.Boolean(), default=False, nullable=False)
-
-    def __str__(self):
-        return f'{self.id}'
+# class Chat(Base):
+#     # is_active = sqlalchemy.Column(sqlalchemy.Boolean(), default=True, nullable=False)
+#     # one_time_answer = sqlalchemy.Column(sqlalchemy.Boolean(), default=False, nullable=False)
+#
+#     def __str__(self):
+#         return f'{self.id}'
 
 
 
 class Keyword(Base):
-    chat_id = sqlalchemy.Column(sqlalchemy.ForeignKey('chat.id', ondelete='cascade'), nullable=True)
-    keyword = sqlalchemy.Column(sqlalchemy.String(256), nullable=False)
-    answer = sqlalchemy.Column(sqlalchemy.String(4000), nullable=False)
-    answer_in_seconds = sqlalchemy.Column(sqlalchemy.Integer(), nullable=False)
+    keyword = sqlalchemy.Column(sqlalchemy.String(1056), nullable=False)
 
-    chat = relationship('Chat', backref='keywords', lazy='joined')
-
-    # @validates('answer_in_seconds')
-    # def validate_answer_time(self, key, value):
-    #     if value < 0:
-    #         raise AssertionError('answer_in_seconds must be positive')
-    #     return value
 
     def __str__(self):
         return f'{self.keyword}'
+
+class MinusKeyword(Base):
+    minus_keyword = sqlalchemy.Column(sqlalchemy.String(1056), nullable=False)
+
+    def __str__(self):
+        return f'{self.minus_keyword}'
+
+class Manager(Base):
+
+    def __str__(self):
+        return f'{self.id}'
