@@ -11,7 +11,7 @@ from src.middlewares import MIDDLEWARES
 
 app = FastAPI()
 
-logger_handler = logging.FileHandler(filename='app_log1.log')
+logger_handler = logging.FileHandler(filename='app_log.log')
 logger_handler.setFormatter(logging.Formatter('%(asctime)s %(levelname)s %(message)s'))
 logger = logging.getLogger("uvicorn.access")
 logger.addHandler(logger_handler)

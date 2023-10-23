@@ -70,7 +70,6 @@ class Application:
                 try:
                     for _keyword in parse_keywords(keyword.keyword):
                         if re.search(_keyword, text):
-                            logging.info('asdaweasd')
                             async with Base.session() as session:
                                 minus_keywords = await session.scalars(
                                     select(MinusKeyword))
@@ -81,11 +80,9 @@ class Application:
                             async with Base.session() as session:
                                 managers = await session.scalars(select(Manager))
                             for manager in managers:
-                                logging.info(manager.id)
                                 try:
                                     await message.forward(manager.id)
                                     await asyncio.sleep(1)
-                                    # await client.send_message(manager.id, text='found message', reply_to_message_id=message.id)
                                 except Exception as err:
                                     logging.exception(err)
 
